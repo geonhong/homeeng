@@ -1,0 +1,161 @@
+/*---------------------------------------------------------------------------*\
+  =========                 |
+  \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
+   \\    /   O peration     |
+    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+     \\/     M anipulation  |
+-------------------------------------------------------------------------------
+License
+    This file is part of OpenFOAM.
+
+    OpenFOAM is free software: you can redistribute it and/or modify it
+    under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    OpenFOAM is distributed in the hope that it will be useful, but WITHOUT
+    ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+    FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
+    for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
+
+\*---------------------------------------------------------------------------*/
+
+#include "DFBI.H"
+#include "addToRunTimeSelectionTable.H"
+#include "dimensionedVector.H"
+#include "forces.H"
+
+// * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
+
+namespace Foam
+{
+namespace solidBodyMotionFunctions
+{
+    defineTypeNameAndDebug(DFBI, 0);
+    addToRunTimeSelectionTable
+    (
+        solidBodyMotionNNNFunction,
+        DFBI,
+        dictionary
+    );
+}
+}
+
+
+// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
+
+Foam::solidBodyMotionFunctions::DFBI::DFBI
+(
+    const dictionary& SBMFCoeffs,
+    const Time& runTime
+)
+:
+    solidBodyMotionNNNFunction(SBMFCoeffs, runTime),
+	s_(SBMFCoeffs_),
+	lambda_(SBMFCoeffs_.lookupOrDefault<scalar>("lambda", 1.0)),
+	gamma_(SBMFCoeffs_.lookupOrDefault<scalar>("gamma", 0.5)),
+	beta_(SBMFCoeffs_.lookupOrDefault<scalar>("beta", 0.25)),
+	first_(true)
+{
+    read(SBMFCoeffs);
+}
+
+
+// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
+
+Foam::solidBodyMotionFunctions::DFBI::~DFBI()
+{}
+
+
+// * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * * //
+
+void Foam::solidBodyMotionFunctions::DFBI::solve()
+{
+	dimensionedVector g("g", dimAcceleration, Zero);
+
+	if (SBMFCoeffs_.found("g"))
+	{
+		SBMFCoeffs_.lookup("g") >> g;
+	}
+
+	scalar deltaT = time_.deltaTValue();
+
+	vector a = s_.a() + g.value();
+	vector v = s_.v();
+	point x = s_.x();
+
+	if (first_)
+	{
+		first_ = false;
+		x = s_.x() + deltaT*s_.v0();
+	}
+	else
+	{
+		// Estimate force and torque
+		// Estimate acceleration
+		dictionary forcesDict;
+
+		word rhoName(SBMFCoeffs_.lookup("rho"));
+
+		forcesDict.add("type", functionObjects::forces::typeName);
+		forcesDict.add("patches", wordReList(SBMFCoeffs_.lookup("patches")));
+		forcesDict.add("rhoInf", readScalar(SBMFCoeffs_.lookup("rhoInf")));
+		forcesDict.add("rho", rhoName);
+		forcesDict.add("CofR", s_.x());
+
+		functionObjects::forces f("forces", time_, forcesDict);
+
+		f.calcForcesMoment();
+
+		vector a0 = s_.a();
+		a = f.forceEff()/s_.mass() + g.value();
+		v = s_.v0() + deltaT*(gamma_*a + (1 - gamma_)*a0);
+		x = s_.x() + (deltaT*s_.v0() + sqr(deltaT)*(beta_*a + (0.5-beta_)*a0));
+	}
+
+	Info<< "Position: " << x << ", v = " << v << ", a = " << a << endl;
+
+	// Update body state
+	s_.update(a, v, x);
+}
+
+Foam::septernion
+Foam::solidBodyMotionFunctions::DFBI::transformation()
+{
+	solve();
+	vector dX(s_.x() - s_.initPosition());
+    vector displacement(dX + s_.initDispl());
+
+    quaternion R(1);
+    septernion TR(septernion(-displacement)*R);
+
+    // DebugInFunction << "Time = " << time_.value() << " transformation: " << TR << endl;
+    Info<< "Time = " << time_.value() << " transformation: " << TR << endl;
+
+    return TR;
+}
+
+
+bool Foam::solidBodyMotionFunctions::DFBI::read
+(
+    const dictionary& SBMFCoeffs
+)
+{
+    solidBodyMotionNNNFunction::read(SBMFCoeffs);
+
+    SBMFCoeffs_.lookup("mass") >> s_.mass();
+    SBMFCoeffs_.lookup("velocity") >> s_.v();
+    SBMFCoeffs_.lookup("position") >> s_.x();
+
+	s_.update();
+
+	Info<< s_ << endl;
+
+    return true;
+}
+
+
+// ************************************************************************* //
