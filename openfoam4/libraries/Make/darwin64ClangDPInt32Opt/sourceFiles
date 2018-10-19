@@ -1,5 +1,0 @@
-SOURCE = \
-$(solidBodyMotionFvMesh)/solidBodyMotionNNNFvMesh.C \
-$(solidBodyMotionFunctions)/solidBodyMotionNNNFunction/solidBodyMotionNNNFunction.C \
-$(solidBodyMotionFunctions)/solidBodyMotionNNNFunction/solidBodyMotionNNNFunctionNew.C \
-$(solidBodyMotionFunctions)/DFBI/DFBI.C 
