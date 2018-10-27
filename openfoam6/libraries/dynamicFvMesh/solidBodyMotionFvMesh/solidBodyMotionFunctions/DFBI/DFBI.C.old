@@ -86,7 +86,6 @@ void Foam::solidBodyMotionFunctions::DFBI::solve()
 	vector a = s_.a() + g.value();
 	vector v = s_.v();
 	point x = s_.x();
-	vector omega = s_.omega();
 
 	if (first_)
 	{
@@ -120,7 +119,7 @@ void Foam::solidBodyMotionFunctions::DFBI::solve()
 	Info<< "Position: " << x << ", v = " << v << ", a = " << a << endl;
 
 	// Update body state
-	s_.update(a, v, x, omega);
+	s_.update(a, v, x);
 }
 
 Foam::septernion
@@ -128,16 +127,10 @@ Foam::solidBodyMotionFunctions::DFBI::transformation()
 {
 	solve();
 	vector dX(s_.x() - s_.initPosition());
-	vector dX0(s_.x0() - s_.initPosition());
-    vector displ(dX + s_.initDispl());
-    vector displ0(dX0 + s_.initDispl());
+    vector displacement(dX + s_.initDispl());
 
-	scalar t = time_.value() - time_.startTime().value();
-	vector axis = s_.omega()/mag(s_.omega());
-	scalar angle = t*mag(s_.omega());
-
-    quaternion R(angle, axis);
-    septernion TR(septernion(-displ)*R*septernion(displ0));
+    quaternion R(1);
+    septernion TR(septernion(-displacement)*R);
 
     // DebugInFunction << "Time = " << time_.value() << " transformation: " << TR << endl;
     Info<< "Time = " << time_.value() << " transformation: " << TR << endl;
