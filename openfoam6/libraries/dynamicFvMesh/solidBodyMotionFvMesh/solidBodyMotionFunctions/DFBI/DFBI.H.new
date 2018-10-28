@@ -48,19 +48,25 @@ namespace solidBodyMotionFunctions
 
 class solidBodyMotionState
 {
-	scalar mass_;
-	point initDispl_;
-	point initPosition_;
+	const scalar mass_;
+	const point initDispl_;
+	const point initPosition_;
+	const vector initOmega_;
 
 	vector a_;
 	vector v_;
 	point x_;
+	scalar omega_;
+	vector axis_;
 
 	vector a0_;
 	vector v0_;
 	point x0_;
+	vector axis0_;
+	scalar omega0_;
 
 public:
+	/*
 	solidBodyMotionState
 	(
 		const vector& v,
@@ -72,6 +78,7 @@ public:
 		a0_(vector::zero),
 		v0_(v), x0_(x)
 	{}
+	*/
 
 	solidBodyMotionState
 	(
@@ -83,52 +90,66 @@ public:
 		initPosition_(dict.lookup("position")),
 		a_(vector::zero),
 		v_(dict.lookup("velocity")),
-		x_(dict.lookup("position"))
+		x_(dict.lookup("position")),
+		omega_(readScalar(dict.lookup("omega"))),
+		axis_(dict.lookup("axis"))
 	{
 		this->update();
 	}
 
 	// Access
 		const scalar& mass() const { return mass_; }
-		const vector& initDispl() const { return initDispl_; }
-		const vector& initPosition() const { return initPosition_; }
+		const point& initDispl() const { return initDispl_; }
+		const point& initPosition() const { return initPosition_; }
+		const vector& initOmega() const { return initOmega_; }
 		const vector& v() const { return v_; }
 		const point& x() const { return x_; }
+		const scalar& omega() const { return omega_; }
+		const vector& axis() const { return axis_; }
 		const vector& v0() const { return v0_; }
 		const point& x0() const { return x0_; }
+		const scalar& omega0() const { return omega0_; }
 
-		scalar& mass() { return mass_; }
-		vector& initDispl() { return initDispl_; }
-		vector& initPosition() { return initPosition_; }
+		// scalar& mass() { return mass_; }
+		// vector& initDispl() { return initDispl_; }
+		// vector& initPosition() { return initPosition_; }
+		// vector& initOmega() { return initOmega_; }
 		vector& a() { return a_; }
 		vector& v() { return v_; }
 		point& x() { return x_; }
+		scalar& omega() { return omega_; }
+		vector& axis() { return axis_; }
 
 		vector& a0() { return a0_; }
 		vector& v0() { return v0_; }
 		point& x0() { return x0_; }
+		scalar& omega0() { return omega0_; }
 
 		void update()
 		{
 			a0_ = a_;
 			v0_ = v_;
 			x0_ = x_;
+			omega0_ = omega_;
 		}
 
 		void update
 		(
 			const vector& a,
 			const vector& v, 
-			const point& x
+			const point& x,
+			const scalar& omega
 		)
 		{
 			a0_ = a_;
 			v0_ = v_;
 			x0_ = x_;
+			omega0_ = omega_;
 
 			a_ = a;
 			v_ = v;
 			x_ = x;
+			omega_ = omega;
 		}
 	
 };
