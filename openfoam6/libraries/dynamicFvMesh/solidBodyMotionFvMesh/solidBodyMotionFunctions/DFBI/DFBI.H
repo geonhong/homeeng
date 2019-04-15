@@ -60,6 +60,9 @@ class solidBodyMotionState
 	vector v0_;
 	point x0_;
 
+	// Rotating related variables
+	vector omega_;	// rotational speed, rad/s
+
 public:
 	solidBodyMotionState
 	(
@@ -70,7 +73,8 @@ public:
 		a_(vector::zero),
 		v_(v), x_(x),
 		a0_(vector::zero),
-		v0_(v), x0_(x)
+		v0_(v), x0_(x),
+		omega_(vector::zero)
 	{}
 
 	solidBodyMotionState
@@ -83,7 +87,8 @@ public:
 		initPosition_(dict.lookup("position")),
 		a_(vector::zero),
 		v_(dict.lookup("velocity")),
-		x_(dict.lookup("position"))
+		x_(dict.lookup("position")),
+		omega_(dict.lookup("omega"))
 	{
 		this->update();
 	}
@@ -96,6 +101,7 @@ public:
 		const point& x() const { return x_; }
 		const vector& v0() const { return v0_; }
 		const point& x0() const { return x0_; }
+		const vector& omega() const { return omega_; }
 
 		scalar& mass() { return mass_; }
 		vector& initDispl() { return initDispl_; }
@@ -103,6 +109,7 @@ public:
 		vector& a() { return a_; }
 		vector& v() { return v_; }
 		point& x() { return x_; }
+		vector& omega() { return omega_; }
 
 		vector& a0() { return a0_; }
 		vector& v0() { return v0_; }
@@ -144,6 +151,7 @@ Ostream& operator<<
 		<< "\tmass    \t" << s.mass() << nl
 		<< "\tvelocity\t" << s.v() << nl
 		<< "\tposition\t" << s.x() << nl
+		<< "\tomega   \t" << s.omega() << nl
 		<< "}" << endl;
 
 	return os;

@@ -27,6 +27,7 @@ License
 #include "addToRunTimeSelectionTable.H"
 #include "dimensionedVector.H"
 #include "forces.H"
+#include "fvMesh.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
@@ -61,6 +62,44 @@ Foam::solidBodyMotionFunctions::DFBI::DFBI
 	first_(true)
 {
     read(SBMFCoeffs);
+
+	// Estimate Center of Mass, rather using the input position
+	const fvMesh& mesh(runTime.lookupObject<fvMesh>("region0"));
+	const polyBoundaryMesh& bMesh = mesh.boundaryMesh();
+
+	forAll(bMesh, bi)
+	{
+		const polyPatch& patch = bMesh[bi];
+
+		if (patch.type() == "wall")
+		{
+			const vectorField& fC = patch.faceCentres();
+			const vectorField& fA = patch.faceAreas();
+
+			scalar sumA(0.0);
+			vector sumAxC(vector::zero);
+
+			forAll(fC, fi)
+			{
+				scalar Area = mag(fA[fi]);
+
+				sumA += Area;
+				sumAxC += Area*fC[fi];
+			}
+
+			reduce(sumA, sumOp<scalar>());
+			reduce(sumAxC, sumOp<vector>());
+
+			vector CofM = sumAxC/sumA;
+//			s_.initPosition() = CofM;
+//			s_.x() = CofM;
+//			s_.x0() = CofM;
+
+			Info<< "Center of Mass: " << CofM << endl
+//				<< s_ 
+				<< endl;
+		}
+	}
 }
 
 
@@ -133,7 +172,15 @@ Foam::solidBodyMotionFunctions::DFBI::transformation()
 	vector dX(s_.x() - s_.initPosition());
     vector displacement(dX + s_.initDispl());
 
-    quaternion R(vector(0,0,1), 3.141592*deltaT);
+	quaternion R(0.0, vector(0.0, 0.0, 0.0));
+	if (mag(s_.omega()) > 0.0)
+	{
+		vector axis = s_.omega()/mag(s_.omega());
+		scalar angle = mag(s_.omega())*deltaT;
+		R = quaternion(axis, angle);
+	}
+
+    // quaternion R(vector(0,0,1), 3.141592*deltaT);
     septernion TR(septernion(-displacement - X0)*R*septernion(X0));
 
     // DebugInFunction << "Time = " << time_.value() << " transformation: " << TR << endl;
@@ -155,6 +202,7 @@ bool Foam::solidBodyMotionFunctions::DFBI::read
     SBMFCoeffs_.lookup("mass") >> s_.mass();
     SBMFCoeffs_.lookup("velocity") >> s_.v();
     SBMFCoeffs_.lookup("position") >> s_.x();
+	SBMFCoeffs_.lookup("omega") >> s_.omega();
 
 	s_.update();
 
